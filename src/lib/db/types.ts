@@ -31,6 +31,7 @@ export interface Database {
 export interface ItemRow {
   id: string;
   name: string;
+  detail_name: string;
   category: string;
   quantity: number;
   status: string;

@@ -13,6 +13,7 @@ import type { ItemRow, BoxRow } from "../../lib/db/types";
 export interface Item {
   id: string;
   name: string;
+  detailName: string;
   category: string;
   quantity: number;
   prepared: boolean;
@@ -102,6 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { error: insertError } = await supabase.from("items").insert({
       id: row.id,
       name: row.name,
+      detail_name: row.detail_name,
       category: row.category,
       quantity: row.quantity,
       status: row.status,
@@ -120,6 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .from("items")
       .update({
         name: item.name,
+        detail_name: item.detailName,
         category: item.category,
         quantity: item.quantity,
         status: item.prepared ? "prepared" : "pending",

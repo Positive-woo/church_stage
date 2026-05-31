@@ -12,14 +12,24 @@ import { useState } from "react";
 
 export default function Inventory() {
   const { items, boxes, loading, addItem, updateItem, deleteItem, assignItemToBox } = useApp();
-  const [newItem, setNewItem] = useState({ name: "", category: DEFAULT_ITEM_CATEGORY, quantity: 1 });
+  const [newItem, setNewItem] = useState({
+    name: "",
+    detailName: "",
+    category: DEFAULT_ITEM_CATEGORY,
+    quantity: 1,
+  });
   const [isOpen, setIsOpen] = useState(false);
 
   const handleAddItem = async () => {
     if (newItem.name.trim()) {
-      const ok = await addItem({ ...newItem, name: newItem.name.trim(), prepared: false });
+      const ok = await addItem({
+        ...newItem,
+        name: newItem.name.trim(),
+        detailName: newItem.detailName.trim(),
+        prepared: false,
+      });
       if (ok) {
-        setNewItem({ name: "", category: DEFAULT_ITEM_CATEGORY, quantity: 1 });
+        setNewItem({ name: "", detailName: "", category: DEFAULT_ITEM_CATEGORY, quantity: 1 });
         setIsOpen(false);
       }
     }
@@ -78,6 +88,14 @@ export default function Inventory() {
                   value={newItem.name}
                   onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                   placeholder="예: 마이크"
+                />
+              </div>
+              <div>
+                <Label>세부 물품 명</Label>
+                <Input
+                  value={newItem.detailName}
+                  onChange={(e) => setNewItem({ ...newItem, detailName: e.target.value })}
+                  placeholder="예: 무선 핸드마이크"
                 />
               </div>
               <div>
@@ -180,6 +198,11 @@ export default function Inventory() {
                       <h3 className={`text-sm md:text-base font-medium break-keep ${item.prepared ? "line-through text-gray-500" : "text-gray-900"}`}>
                         {item.name}
                       </h3>
+                      {item.detailName && (
+                        <p className="text-xs md:text-sm text-gray-500 break-keep mt-0.5">
+                          {item.detailName}
+                        </p>
+                      )}
                       <div className="flex gap-2 mt-1 flex-wrap">
                         <Badge variant="outline" className="text-xs">{item.category}</Badge>
                         <span className="text-xs md:text-sm text-gray-500 break-keep">수량: {item.quantity}</span>

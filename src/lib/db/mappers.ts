@@ -7,6 +7,7 @@ export function itemFromRow(row: ItemRow): Item {
   return {
     id: row.id,
     name: row.name,
+    detailName: row.detail_name ?? "",
     category: row.category,
     quantity: row.quantity,
     prepared: row.status === "prepared",
@@ -18,6 +19,7 @@ export function itemToRow(item: Item): ItemRow {
   return {
     id: item.id,
     name: item.name,
+    detail_name: item.detailName,
     category: item.category,
     quantity: item.quantity,
     status: item.prepared ? "prepared" : "pending",

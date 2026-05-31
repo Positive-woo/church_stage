@@ -280,6 +280,11 @@ export default function BoxManagement() {
                         <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                           <div className="flex-1 min-w-0">
                             <span className="text-xs md:text-sm font-medium break-keep block truncate">{item.name}</span>
+                            {item.detailName && (
+                              <span className="text-xs text-gray-500 break-keep block truncate mt-0.5">
+                                {item.detailName}
+                              </span>
+                            )}
                             <div className="flex gap-2 mt-1 flex-wrap">
                               <Badge variant="outline" className="text-xs">{item.category}</Badge>
                               <span className="text-xs text-gray-500 break-keep">수량: {item.quantity}</span>

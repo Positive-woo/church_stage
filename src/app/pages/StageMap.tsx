@@ -1115,6 +1115,11 @@ export default function StageMap() {
                             <p className={`text-xs md:text-sm font-medium break-keep ${item.prepared ? "line-through text-gray-500" : ""}`}>
                               {item.name}
                             </p>
+                            {item.detailName && (
+                              <p className="text-xs text-gray-500 break-keep mt-0.5">
+                                {item.detailName}
+                              </p>
+                            )}
                             <div className="flex gap-2 mt-1 flex-wrap">
                               <Badge variant="outline" className="text-xs">{item.category}</Badge>
                               <span className="text-xs text-gray-500 break-keep">수량: {item.quantity}</span>
