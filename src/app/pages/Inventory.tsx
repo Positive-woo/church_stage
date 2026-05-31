@@ -11,7 +11,7 @@ import { DEFAULT_ITEM_CATEGORY, ITEM_CATEGORIES } from "../lib/itemCategories";
 import { useState } from "react";
 
 export default function Inventory() {
-  const { items, boxes, loading, addItem, updateItem, deleteItem, assignItemToBox } = useApp();
+  const { items, boxes, loading, error, addItem, updateItem, deleteItem, assignItemToBox } = useApp();
   const [newItem, setNewItem] = useState({
     name: "",
     detailName: "",
@@ -129,6 +129,12 @@ export default function Inventory() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 break-keep">
+          데이터 저장소 오류: {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
         <Card>
