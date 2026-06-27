@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -9,13 +9,23 @@ import { Label } from "../components/ui/label";
 import { useApp } from "../context/AppContext";
 
 export default function BoxManagement() {
-  const { boxes, loading, addBox, updateBox, deleteBox, getItemsForBox, assignItemToBox } = useApp();
+  const { boxes, loading, isEditMode, addBox, updateBox, deleteBox, getItemsForBox, assignItemToBox } = useApp();
   const [newBox, setNewBox] = useState({ name: "", location: "" });
   const [isOpen, setIsOpen] = useState(false);
   const [editingBoxId, setEditingBoxId] = useState<string | null>(null);
   const [editBox, setEditBox] = useState({ name: "", location: "" });
 
+  useEffect(() => {
+    if (!isEditMode) {
+      setIsOpen(false);
+      setEditingBoxId(null);
+      setEditBox({ name: "", location: "" });
+    }
+  }, [isEditMode]);
+
   const handleAddBox = async () => {
+    if (!isEditMode) return;
+
     const name = newBox.name.trim();
     const location = newBox.location.trim();
     if (!name || !location) return;
@@ -28,20 +38,28 @@ export default function BoxManagement() {
   };
 
   const togglePlaced = async (box: (typeof boxes)[0]) => {
+    if (!isEditMode) return;
+
     await updateBox({ ...box, placed: !box.placed });
   };
 
   const handleDeleteBox = async (id: string) => {
+    if (!isEditMode) return;
+
     await deleteBox(id);
     if (editingBoxId === id) setEditingBoxId(null);
   };
 
   const startEditBox = (box: { id: string; name: string; location: string }) => {
+    if (!isEditMode) return;
+
     setEditingBoxId(box.id);
     setEditBox({ name: box.name, location: box.location });
   };
 
   const saveEditBox = async () => {
+    if (!isEditMode) return;
+
     if (!editingBoxId || !editBox.name.trim() || !editBox.location.trim()) return;
     const box = boxes.find((b) => b.id === editingBoxId);
     if (box) {
@@ -61,6 +79,8 @@ export default function BoxManagement() {
   };
 
   const handleImageUpload = (box: (typeof boxes)[0], event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isEditMode) return;
+
     const files = event.target.files;
     if (files) {
       Array.from(files).forEach((file) => {
@@ -78,6 +98,8 @@ export default function BoxManagement() {
   };
 
   const deleteImage = async (box: (typeof boxes)[0], imageIndex: number) => {
+    if (!isEditMode) return;
+
     await updateBox({
       ...box,
       imageUrls: box.imageUrls.filter((_, idx) => idx !== imageIndex),
@@ -85,6 +107,8 @@ export default function BoxManagement() {
   };
 
   const removeItemFromBox = async (itemId: string) => {
+    if (!isEditMode) return;
+
     await assignItemToBox(itemId, undefined);
   };
 
@@ -109,9 +133,9 @@ export default function BoxManagement() {
           <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2 break-keep">박스 관리</h1>
           <p className="text-sm md:text-base text-gray-600 break-keep">물품 박스를 정리하고 배치 위치를 체크하세요</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(isEditMode && open)}>
           <DialogTrigger asChild>
-            <Button className="min-h-[44px] w-full md:w-auto">
+            <Button className="min-h-[44px] w-full md:w-auto" disabled={!isEditMode}>
               <Plus className="w-4 h-4 mr-2" />
               박스 추가
             </Button>
@@ -233,6 +257,7 @@ export default function BoxManagement() {
                         size="icon"
                         onClick={() => startEditBox(box)}
                         className="min-h-[44px] min-w-[44px]"
+                        disabled={!isEditMode}
                       >
                         <Pencil className="w-4 h-4 text-gray-600" />
                       </Button>
@@ -241,6 +266,7 @@ export default function BoxManagement() {
                         size="icon"
                         onClick={() => handleDeleteBox(box.id)}
                         className="min-h-[44px] min-w-[44px]"
+                        disabled={!isEditMode}
                       >
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
@@ -260,6 +286,7 @@ export default function BoxManagement() {
                             size="icon"
                             className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6"
                             onClick={() => deleteImage(box, idx)}
+                            disabled={!isEditMode}
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -295,6 +322,7 @@ export default function BoxManagement() {
                             size="icon"
                             className="h-8 w-8 md:h-6 md:w-6 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 shrink-0 ml-2"
                             onClick={() => removeItemFromBox(item.id)}
+                            disabled={!isEditMode}
                           >
                             <X className="w-4 h-4 text-gray-500" />
                           </Button>
@@ -312,11 +340,15 @@ export default function BoxManagement() {
                     size="sm"
                     className="flex-1 min-h-[44px]"
                     onClick={() => togglePlaced(box)}
+                    disabled={!isEditMode}
                   >
                     <MapPin className="w-4 h-4 mr-2" />
                     <span className="text-xs md:text-sm break-keep">{box.placed ? "배치 완료" : "배치 체크"}</span>
                   </Button>
-                  <Label htmlFor={`upload-${box.id}`} className="flex-1">
+                  <Label
+                    htmlFor={`upload-${box.id}`}
+                    className={`flex-1 ${isEditMode ? "" : "pointer-events-none opacity-50"}`}
+                  >
                     <Button variant="outline" size="sm" className="w-full min-h-[44px]" asChild>
                       <span>
                         <ImageIcon className="w-4 h-4 mr-2" />
@@ -331,6 +363,7 @@ export default function BoxManagement() {
                     multiple
                     className="hidden"
                     onChange={(e) => handleImageUpload(box, e)}
+                    disabled={!isEditMode}
                   />
                 </div>
               </CardContent>

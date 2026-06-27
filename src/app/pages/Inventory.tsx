@@ -8,10 +8,10 @@ import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useApp } from "../context/AppContext";
 import { DEFAULT_ITEM_CATEGORY, ITEM_CATEGORIES } from "../lib/itemCategories";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Inventory() {
-  const { items, boxes, loading, error, addItem, updateItem, deleteItem, assignItemToBox } = useApp();
+  const { items, boxes, loading, error, isEditMode, addItem, updateItem, deleteItem, assignItemToBox } = useApp();
   const [newItem, setNewItem] = useState({
     name: "",
     detailName: "",
@@ -20,7 +20,13 @@ export default function Inventory() {
   });
   const [isOpen, setIsOpen] = useState(false);
 
+  useEffect(() => {
+    if (!isEditMode) setIsOpen(false);
+  }, [isEditMode]);
+
   const handleAddItem = async () => {
+    if (!isEditMode) return;
+
     if (newItem.name.trim()) {
       const ok = await addItem({
         ...newItem,
@@ -36,15 +42,21 @@ export default function Inventory() {
   };
 
   const togglePrepared = async (id: string) => {
+    if (!isEditMode) return;
+
     const item = items.find((i) => i.id === id);
     if (item) await updateItem({ ...item, prepared: !item.prepared });
   };
 
   const handleDeleteItem = async (id: string) => {
+    if (!isEditMode) return;
+
     await deleteItem(id);
   };
 
   const handleBoxAssignment = async (itemId: string, boxId: string) => {
+    if (!isEditMode) return;
+
     await assignItemToBox(itemId, boxId === "unassigned" ? undefined : boxId);
   };
 
@@ -70,9 +82,9 @@ export default function Inventory() {
           <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2 break-keep">물품 목록</h1>
           <p className="text-sm md:text-base text-gray-600 break-keep">수련회에 필요한 물품을 관리하세요</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(isEditMode && open)}>
           <DialogTrigger asChild>
-            <Button className="min-h-[44px] w-full md:w-auto">
+            <Button className="min-h-[44px] w-full md:w-auto" disabled={!isEditMode}>
               <Plus className="w-4 h-4 mr-2" />
               물품 추가
             </Button>
@@ -198,6 +210,7 @@ export default function Inventory() {
                       type="checkbox"
                       checked={item.prepared}
                       onChange={() => togglePrepared(item.id)}
+                      disabled={!isEditMode}
                       className="w-5 h-5 rounded border-gray-300"
                     />
                     <div className="flex-1 min-w-0">
@@ -220,6 +233,7 @@ export default function Inventory() {
                       <Select
                         value={item.assignedBoxId || "unassigned"}
                         onValueChange={(value) => handleBoxAssignment(item.id, value)}
+                        disabled={!isEditMode}
                       >
                         <SelectTrigger className="min-h-[44px]">
                           <SelectValue>
@@ -234,7 +248,13 @@ export default function Inventory() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteItem(item.id)} className="min-h-[44px] min-w-[44px]">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteItem(item.id)}
+                      className="min-h-[44px] min-w-[44px]"
+                      disabled={!isEditMode}
+                    >
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </div>

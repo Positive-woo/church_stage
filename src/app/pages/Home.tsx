@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Package, Check, Box, Map } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { Package, Check, Box, Map, Eye, Pencil } from "lucide-react";
 import { Link } from "react-router";
 import { useApp } from "../context/AppContext";
+import { cn } from "../components/ui/utils";
 
 export default function Home() {
-  const { items, boxes } = useApp();
+  const { items, boxes, appMode, setAppMode } = useApp();
 
   const preparedCount = items.filter((i) => i.prepared).length;
   const placedBoxes = boxes.filter((b) => b.placed).length;
@@ -24,9 +26,39 @@ export default function Home() {
 
   return (
     <div className="page-container p-4 md:p-8 pb-20 md:pb-8">
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-2 break-keep">수련회 관리 대시보드</h1>
-        <p className="text-sm md:text-base text-gray-600 break-keep">수련회 준비 현황을 한눈에 확인하세요</p>
+      <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-2 break-keep">수련회 관리 대시보드</h1>
+          <p className="text-sm md:text-base text-gray-600 break-keep">수련회 준비 현황을 한눈에 확인하세요</p>
+        </div>
+        <div className="inline-flex w-full md:w-auto rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+          <Button
+            type="button"
+            variant="ghost"
+            className={cn(
+              "flex-1 md:flex-none min-h-[40px] px-3 text-sm",
+              appMode === "viewer" && "bg-gray-900 text-white hover:bg-gray-900 hover:text-white"
+            )}
+            aria-pressed={appMode === "viewer"}
+            onClick={() => setAppMode("viewer")}
+          >
+            <Eye className="w-4 h-4" />
+            뷰어 모드
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className={cn(
+              "flex-1 md:flex-none min-h-[40px] px-3 text-sm",
+              appMode === "edit" && "bg-blue-600 text-white hover:bg-blue-600 hover:text-white"
+            )}
+            aria-pressed={appMode === "edit"}
+            onClick={() => setAppMode("edit")}
+          >
+            <Pencil className="w-4 h-4" />
+            편집 모드
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">

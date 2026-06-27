@@ -25,7 +25,7 @@ async function seedDefaultZoneTypes() {
   await supabase.from("stage_elements").upsert(rows);
 }
 
-export function useStageLayout() {
+export function useStageLayout(isEditMode = true) {
   const [zoneTypes, setZoneTypes] = useState<ZoneType[]>(defaultZoneTypes);
   const [zones, setZones] = useState<Zone[]>([]);
   const [boxPositions, setBoxPositions] = useState<BoxPosition[]>([]);
@@ -45,7 +45,7 @@ export function useStageLayout() {
 
     const layout = stageLayoutFromRows((rows ?? []) as StageElementRow[]);
 
-    if (layout.zoneTypes.length === 0) {
+    if (layout.zoneTypes.length === 0 && isEditMode) {
       await seedDefaultZoneTypes();
       const { data: seeded } = await supabase
         .from("stage_elements")
@@ -53,6 +53,8 @@ export function useStageLayout() {
         .eq("type", "zone_type");
       const seededLayout = stageLayoutFromRows((seeded ?? []) as StageElementRow[]);
       setZoneTypes(seededLayout.zoneTypes.length ? seededLayout.zoneTypes : defaultZoneTypes);
+    } else if (layout.zoneTypes.length === 0) {
+      setZoneTypes(defaultZoneTypes);
     } else {
       setZoneTypes(layout.zoneTypes);
     }
@@ -60,7 +62,7 @@ export function useStageLayout() {
     setZones(layout.zones);
     setBoxPositions(layout.boxPositions);
     setError(null);
-  }, []);
+  }, [isEditMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,11 +89,15 @@ export function useStageLayout() {
   }, [fetchAll]);
 
   const upsertElement = async (row: StageElementRow) => {
+    if (!isEditMode) return;
+
     const { error: upsertError } = await supabase.from("stage_elements").upsert(row);
     if (upsertError) setError(upsertError.message);
   };
 
   const deleteElement = async (id: string) => {
+    if (!isEditMode) return;
+
     const { error: deleteError } = await supabase
       .from("stage_elements")
       .delete()

@@ -97,10 +97,12 @@ function SegmentedSizeControl({
   value,
   onChange,
   className,
+  disabled = false,
 }: {
   value: ZoneSize;
   onChange: (size: ZoneSize) => void;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <div
@@ -116,9 +118,11 @@ function SegmentedSizeControl({
             "min-w-[2.25rem] px-3 py-1.5 text-xs font-semibold rounded-md transition-all",
             value === size
               ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-800"
+              : "text-gray-500 hover:text-gray-800",
+            "disabled:cursor-not-allowed disabled:opacity-50"
           )}
           onClick={() => onChange(size)}
+          disabled={disabled}
         >
           {ZONE_SIZE_PRESETS[size].label}
         </button>
@@ -132,6 +136,7 @@ function DraggableZone({
   zoneType,
   width,
   height,
+  editable,
   onMove,
   onMoveEnd,
   onDelete,
@@ -141,6 +146,7 @@ function DraggableZone({
   zoneType: ZoneType;
   width: number;
   height: number;
+  editable: boolean;
   onMove: (id: string, x: number, y: number) => void;
   onMoveEnd: (id: string, x: number, y: number) => void;
   onDelete: (id: string) => void;
@@ -157,6 +163,7 @@ function DraggableZone({
   } | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (!editable) return;
     if ((e.target as HTMLElement).closest('button')) return;
 
     const element = e.currentTarget as HTMLElement;
@@ -176,6 +183,7 @@ function DraggableZone({
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (!editable) return;
     if ((e.target as HTMLElement).closest('button')) return;
     if (e.touches.length > 1) return;
 
@@ -292,40 +300,44 @@ function DraggableZone({
         width,
         height,
         opacity: isDragging ? 0.7 : 1,
-        cursor: isDragging ? "grabbing" : "grab",
+        cursor: editable ? (isDragging ? "grabbing" : "grab") : "default",
         touchAction: "none",
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
     >
       <div className={`${zoneType.color} border-2 rounded-lg shadow-md relative w-full h-full`}>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-0 right-0 z-10 min-w-[30px] min-h-[30px] w-[30px] h-[30px] bg-red-500 hover:bg-red-600 text-white rounded-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(zone.id);
-          }}
-        >
-          <X className="w-4 h-4" />
-        </Button>
+        {editable && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-0 right-0 z-10 min-w-[30px] min-h-[30px] w-[30px] h-[30px] bg-red-500 hover:bg-red-600 text-white rounded-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(zone.id);
+            }}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
         <p className="font-medium text-center px-2 h-full flex items-center justify-center text-sm break-keep pb-5">
           {zoneType.label}
         </p>
-        <button
-          type="button"
-          className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-10 h-6 min-w-[1.75rem] px-2 rounded-full bg-white/95 border border-gray-200 text-[10px] font-bold text-gray-700 shadow-sm"
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onResize(zone.id, ZONE_SIZE_CYCLE[zone.size]);
-          }}
-          aria-label={`크기 ${zone.size.toUpperCase()}, 탭하여 변경`}
-        >
-          {ZONE_SIZE_PRESETS[zone.size].label}
-        </button>
+        {editable && (
+          <button
+            type="button"
+            className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-10 h-6 min-w-[1.75rem] px-2 rounded-full bg-white/95 border border-gray-200 text-[10px] font-bold text-gray-700 shadow-sm"
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onResize(zone.id, ZONE_SIZE_CYCLE[zone.size]);
+            }}
+            aria-label={`크기 ${zone.size.toUpperCase()}, 탭하여 변경`}
+          >
+            {ZONE_SIZE_PRESETS[zone.size].label}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -334,6 +346,7 @@ function DraggableZone({
 function DraggableBox({
   boxPosition,
   box,
+  editable,
   onMove,
   onMoveEnd,
   onDelete,
@@ -341,6 +354,7 @@ function DraggableBox({
 }: {
   boxPosition: BoxPosition;
   box: any;
+  editable: boolean;
   onMove: (id: string, x: number, y: number) => void;
   onMoveEnd: (id: string, x: number, y: number) => void;
   onDelete: (id: string) => void;
@@ -357,6 +371,7 @@ function DraggableBox({
   } | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (!editable) return;
     if ((e.target as HTMLElement).closest('button')) return;
 
     const element = e.currentTarget as HTMLElement;
@@ -376,6 +391,7 @@ function DraggableBox({
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (!editable) return;
     if ((e.target as HTMLElement).closest('button')) return;
     if (e.touches.length > 1) return;
 
@@ -396,6 +412,11 @@ function DraggableBox({
   };
 
   const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!editable) {
+      onClick();
+      return;
+    }
+
     if (dragDataRef.current && !dragDataRef.current.hasMoved) {
       onClick();
     }
@@ -500,7 +521,7 @@ function DraggableBox({
         left: boxPosition.x,
         top: boxPosition.y,
         opacity: isDragging ? 0.7 : 1,
-        cursor: isDragging ? "grabbing" : "grab",
+        cursor: editable ? (isDragging ? "grabbing" : "grab") : "pointer",
         touchAction: "none",
       }}
       onMouseDown={handleMouseDown}
@@ -510,17 +531,19 @@ function DraggableBox({
       <div className="flex flex-col items-center" style={{ width: BOX_WIDTH }}>
         <div className="bg-orange-100 border-2 border-orange-400 p-3 rounded-lg shadow-md relative">
           <BoxIcon className="w-8 h-8 text-orange-700" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-0 right-0 z-10 min-w-[30px] min-h-[30px] w-[30px] h-[30px] bg-red-500 hover:bg-red-600 text-white rounded-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(boxPosition.id);
-            }}
-          >
-            <X className="w-4 h-4" />
-          </Button>
+          {editable && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-0 right-0 z-10 min-w-[30px] min-h-[30px] w-[30px] h-[30px] bg-red-500 hover:bg-red-600 text-white rounded-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(boxPosition.id);
+              }}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
         </div>
         <p className="text-xs mt-1 font-medium text-center max-w-[100px] truncate">{box?.name || "박스"}</p>
       </div>
@@ -529,6 +552,7 @@ function DraggableBox({
 }
 
 function ZoneElementsList({
+  isEditMode,
   zoneTypes,
   zones,
   editingZoneTypeId,
@@ -549,6 +573,7 @@ function ZoneElementsList({
   onNewZoneColorChange,
   onAddCustomZoneType,
 }: {
+  isEditMode: boolean;
   zoneTypes: ZoneType[];
   zones: Zone[];
   editingZoneTypeId: string | null;
@@ -575,7 +600,11 @@ function ZoneElementsList({
         <p className="text-xs text-gray-500 break-keep leading-snug">
           크기 선택 후 <span className="font-medium text-gray-700">+</span> 로 맵에 추가
         </p>
-        <SegmentedSizeControl value={newZoneSize} onChange={onNewZoneSizeChange} />
+        <SegmentedSizeControl
+          value={newZoneSize}
+          onChange={onNewZoneSizeChange}
+          disabled={!isEditMode}
+        />
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100">
@@ -616,6 +645,7 @@ function ZoneElementsList({
                     className="h-9 w-9 rounded-full shrink-0 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                     onClick={() => onAddZone(zoneType.id)}
                     aria-label={`${zoneType.label} 맵에 추가`}
+                    disabled={!isEditMode}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -627,6 +657,7 @@ function ZoneElementsList({
                         size="icon"
                         className="h-9 w-9 shrink-0 text-gray-500"
                         aria-label={`${zoneType.label} 더보기`}
+                        disabled={!isEditMode}
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
@@ -652,11 +683,15 @@ function ZoneElementsList({
         })}
       </div>
 
-      <Dialog open={isAddZoneDialogOpen} onOpenChange={onSetIsAddZoneDialogOpen}>
+      <Dialog
+        open={isAddZoneDialogOpen}
+        onOpenChange={(open) => onSetIsAddZoneDialogOpen(isEditMode && open)}
+      >
         <DialogTrigger asChild>
           <Button
             variant="outline"
             className="w-full min-h-[44px] border-dashed text-gray-600 hover:text-gray-900 hover:border-gray-400"
+            disabled={!isEditMode}
           >
             <Plus className="w-4 h-4 mr-2" />
             <span className="break-keep">새 구역 종류</span>
@@ -687,11 +722,12 @@ function ZoneElementsList({
                       newZoneColor === color.value ? "border-black" : "border-gray-300"
                     } ${color.class}`}
                     onClick={() => onNewZoneColorChange(color.value)}
+                    disabled={!isEditMode}
                   />
                 ))}
               </div>
             </div>
-            <Button onClick={onAddCustomZoneType} className="w-full min-h-[44px]">
+            <Button onClick={onAddCustomZoneType} className="w-full min-h-[44px]" disabled={!isEditMode}>
               추가
             </Button>
           </div>
@@ -704,10 +740,12 @@ function ZoneElementsList({
 function BoxPlacementList({
   boxes,
   isBoxPlaced,
+  isEditMode,
   onAddBox,
 }: {
   boxes: { id: string; name: string; location: string }[];
   isBoxPlaced: (id: string) => boolean;
+  isEditMode: boolean;
   onAddBox: (id: string) => void;
 }) {
   if (boxes.length === 0) {
@@ -747,6 +785,7 @@ function BoxPlacementList({
                   className="h-9 w-9 rounded-full shrink-0 border-orange-200 text-orange-600 hover:bg-orange-50"
                   onClick={() => onAddBox(box.id)}
                   aria-label={`${box.name} 맵에 배치`}
+                  disabled={!isEditMode}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -760,8 +799,8 @@ function BoxPlacementList({
 }
 
 export default function StageMap() {
-  const { boxes, updateBox, getItemsForBox, loading: appLoading } = useApp();
-  const layout = useStageLayout();
+  const { boxes, updateBox, getItemsForBox, loading: appLoading, isEditMode } = useApp();
+  const layout = useStageLayout(isEditMode);
   const zoneTypes = layout.zoneTypes.length ? layout.zoneTypes : defaultZoneTypes;
   const [zones, setZones] = useState<Zone[]>([]);
   const [boxPositions, setBoxPositions] = useState<BoxPosition[]>([]);
@@ -785,18 +824,33 @@ export default function StageMap() {
     setBoxPositions(layout.boxPositions);
   }, [layout.zones, layout.boxPositions]);
 
+  useEffect(() => {
+    if (!isEditMode) {
+      setEditingZoneTypeId(null);
+      setEditingZoneName("");
+      setIsAddZoneDialogOpen(false);
+      setDeleteConfirmZoneTypeId(null);
+    }
+  }, [isEditMode]);
+
   const setBoxPlacedOnMap = async (boxId: string, placed: boolean) => {
+    if (!isEditMode) return;
+
     const box = boxes.find((b) => b.id === boxId);
     if (box) await updateBox({ ...box, placed });
   };
 
   const addZone = async (zoneTypeId: string) => {
+    if (!isEditMode) return;
+
     const x = 100 + (zones.length * 30) % 500;
     const y = 100 + (zones.length * 30) % 400;
     await layout.addZone(zoneTypeId, newZoneSize, x, y);
   };
 
   const updateZoneSize = async (id: string, size: ZoneSize) => {
+    if (!isEditMode) return;
+
     const { width, height } = getZoneDimensions(size);
     const zone = zones.find((z) => z.id === id);
     if (!zone) return;
@@ -814,6 +868,8 @@ export default function StageMap() {
   };
 
   const addCustomZoneType = async () => {
+    if (!isEditMode) return;
+
     if (newZoneName.trim()) {
       const colorClass = colorOptions.find((c) => c.value === newZoneColor)?.class || colorOptions[0].class;
       const newZoneType: ZoneType = {
@@ -829,11 +885,15 @@ export default function StageMap() {
   };
 
   const startEditZoneType = (zoneType: ZoneType) => {
+    if (!isEditMode) return;
+
     setEditingZoneTypeId(zoneType.id);
     setEditingZoneName(zoneType.label);
   };
 
   const saveZoneTypeName = async () => {
+    if (!isEditMode) return;
+
     if (editingZoneTypeId && editingZoneName.trim()) {
       const zt = zoneTypes.find((z) => z.id === editingZoneTypeId);
       if (zt) await layout.updateZoneType({ ...zt, label: editingZoneName });
@@ -843,11 +903,15 @@ export default function StageMap() {
   };
 
   const deleteZoneType = async (zoneTypeId: string) => {
+    if (!isEditMode) return;
+
     await layout.deleteZoneType(zoneTypeId);
     setDeleteConfirmZoneTypeId(null);
   };
 
   const addBox = async (boxId: string) => {
+    if (!isEditMode) return;
+
     const x = 150 + (boxPositions.length * 40) % 600;
     const y = 150 + (boxPositions.length * 40) % 500;
     await layout.addBoxPosition(boxId, x, y);
@@ -855,28 +919,40 @@ export default function StageMap() {
   };
 
   const moveZone = (id: string, x: number, y: number) => {
+    if (!isEditMode) return;
+
     setZones((prev) => prev.map((z) => (z.id === id ? { ...z, x, y } : z)));
   };
 
   const persistZoneMove = async (id: string, x: number, y: number) => {
+    if (!isEditMode) return;
+
     const zone = zones.find((z) => z.id === id);
     if (zone) await layout.updateZone({ ...zone, x, y });
   };
 
   const moveBox = (id: string, x: number, y: number) => {
+    if (!isEditMode) return;
+
     setBoxPositions((prev) => prev.map((bp) => (bp.id === id ? { ...bp, x, y } : bp)));
   };
 
   const persistBoxMove = async (id: string, x: number, y: number) => {
+    if (!isEditMode) return;
+
     const bp = boxPositions.find((b) => b.id === id);
     if (bp) await layout.updateBoxPosition({ ...bp, x, y });
   };
 
   const deleteZone = async (id: string) => {
+    if (!isEditMode) return;
+
     await layout.deleteZone(id);
   };
 
   const deleteBox = async (positionId: string) => {
+    if (!isEditMode) return;
+
     const removed = boxPositions.find((bp) => bp.id === positionId);
     await layout.deleteBoxPosition(positionId);
     if (removed) {
@@ -890,6 +966,7 @@ export default function StageMap() {
   };
 
   const zoneElementsListProps = {
+    isEditMode,
     zoneTypes,
     zones,
     editingZoneTypeId,
@@ -970,6 +1047,7 @@ export default function StageMap() {
                 <BoxPlacementList
                   boxes={boxes}
                   isBoxPlaced={isBoxPlaced}
+                  isEditMode={isEditMode}
                   onAddBox={addBox}
                 />
               </CardContent>
@@ -1001,6 +1079,7 @@ export default function StageMap() {
               <BoxPlacementList
                 boxes={boxes}
                 isBoxPlaced={isBoxPlaced}
+                isEditMode={isEditMode}
                 onAddBox={addBox}
               />
             </CardContent>
@@ -1035,6 +1114,7 @@ export default function StageMap() {
                       zoneType={zone.zoneType!}
                       width={width}
                       height={height}
+                      editable={isEditMode}
                       onMove={moveZone}
                       onMoveEnd={persistZoneMove}
                       onDelete={deleteZone}
@@ -1049,6 +1129,7 @@ export default function StageMap() {
                       key={boxPos.id}
                       boxPosition={boxPos}
                       box={box}
+                      editable={isEditMode}
                       onMove={moveBox}
                       onMoveEnd={persistBoxMove}
                       onDelete={deleteBox}
@@ -1059,8 +1140,14 @@ export default function StageMap() {
                 {zones.length === 0 && boxPositions.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center text-gray-400 p-4">
                     <p className="text-xs md:text-base text-center break-keep">
-                      <span className="md:hidden">위에서 요소를 추가하여 무대 맵을 구성하세요</span>
-                      <span className="hidden md:inline">왼쪽에서 요소를 추가하여 무대 맵을 구성하세요</span>
+                      {isEditMode ? (
+                        <>
+                          <span className="md:hidden">위에서 요소를 추가하여 무대 맵을 구성하세요</span>
+                          <span className="hidden md:inline">왼쪽에서 요소를 추가하여 무대 맵을 구성하세요</span>
+                        </>
+                      ) : (
+                        <span>무대 맵에 배치된 요소가 없습니다</span>
+                      )}
                     </p>
                   </div>
                 )}
@@ -1151,7 +1238,10 @@ export default function StageMap() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteConfirmZoneTypeId && deleteZoneType(deleteConfirmZoneTypeId)}>
+            <AlertDialogAction
+              onClick={() => deleteConfirmZoneTypeId && deleteZoneType(deleteConfirmZoneTypeId)}
+              disabled={!isEditMode}
+            >
               삭제
             </AlertDialogAction>
           </AlertDialogFooter>

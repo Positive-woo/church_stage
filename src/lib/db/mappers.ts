@@ -1,5 +1,6 @@
 import type { Item, Box } from "../../app/context/AppContext";
 import type { ItemRow, BoxRow, StageElementRow } from "./types";
+import { normalizeItemCategory } from "../../app/lib/itemCategories";
 import type { ZoneSize } from "../../app/lib/zoneSize";
 import { ZONE_SIZE_PRESETS } from "../../app/lib/zoneSize";
 
@@ -8,7 +9,7 @@ export function itemFromRow(row: ItemRow): Item {
     id: row.id,
     name: row.name,
     detailName: row.detail_name ?? "",
-    category: row.category,
+    category: normalizeItemCategory(row.category),
     quantity: row.quantity,
     prepared: row.status === "prepared",
     assignedBoxId: row.box_id ?? undefined,
@@ -20,7 +21,7 @@ export function itemToRow(item: Item): ItemRow {
     id: item.id,
     name: item.name,
     detail_name: item.detailName,
-    category: item.category,
+    category: normalizeItemCategory(item.category),
     quantity: item.quantity,
     status: item.prepared ? "prepared" : "pending",
     box_id: item.assignedBoxId ?? null,

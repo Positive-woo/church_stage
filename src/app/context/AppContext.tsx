@@ -10,6 +10,15 @@ import { supabase, createId } from "../../lib/supabase";
 import { itemFromRow, itemToRow, boxFromRow, boxToRow } from "../../lib/db/mappers";
 import type { ItemRow, BoxRow } from "../../lib/db/types";
 
+export type AppMode = "viewer" | "edit";
+
+const APP_MODE_STORAGE_KEY = "church-stage-app-mode";
+
+function getInitialAppMode(): AppMode {
+  if (typeof window === "undefined") return "edit";
+  return window.localStorage.getItem(APP_MODE_STORAGE_KEY) === "viewer" ? "viewer" : "edit";
+}
+
 export interface Item {
   id: string;
   name: string;
@@ -39,6 +48,9 @@ interface AppContextType {
   boxes: Box[];
   loading: boolean;
   error: string | null;
+  appMode: AppMode;
+  isEditMode: boolean;
+  setAppMode: (mode: AppMode) => void;
   setItems: (items: Item[]) => void;
   setBoxes: (boxes: Box[]) => void;
   addItem: (item: Omit<Item, "id">) => Promise<boolean>;
@@ -59,6 +71,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [appMode, setAppMode] = useState<AppMode>(getInitialAppMode);
+  const isEditMode = appMode === "edit";
+
+  useEffect(() => {
+    window.localStorage.setItem(APP_MODE_STORAGE_KEY, appMode);
+  }, [appMode]);
 
   const fetchAll = useCallback(async () => {
     const [itemsRes, boxesRes] = await Promise.all([
@@ -98,6 +116,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [fetchAll]);
 
   const addItem = async (item: Omit<Item, "id">) => {
+    if (!isEditMode) return false;
+
     const newItem: Item = { ...item, id: createId() };
     const row = itemToRow(newItem);
     const { error: insertError } = await supabase.from("items").insert({
@@ -118,6 +138,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateItem = async (item: Item) => {
+    if (!isEditMode) return;
+
     const { error: updateError } = await supabase
       .from("items")
       .update({
@@ -133,11 +155,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteItem = async (id: string) => {
+    if (!isEditMode) return;
+
     const { error: deleteError } = await supabase.from("items").delete().eq("id", id);
     if (deleteError) setError(deleteError.message);
   };
 
   const addBox = async (box: Omit<Box, "id" | "items" | "imageUrls" | "placed">) => {
+    if (!isEditMode) return false;
+
     const newBox: Box = {
       ...box,
       id: createId(),
@@ -162,6 +188,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateBox = async (box: Box) => {
+    if (!isEditMode) return;
+
     const { error: updateError } = await supabase
       .from("boxes")
       .update({
@@ -175,6 +203,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteBox = async (id: string) => {
+    if (!isEditMode) return;
+
     const assignedItems = items.filter((item) => item.assignedBoxId === id);
     for (const item of assignedItems) {
       await updateItem({ ...item, assignedBoxId: undefined });
@@ -184,6 +214,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const assignItemToBox = async (itemId: string, boxId: string | undefined) => {
+    if (!isEditMode) return;
+
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     await updateItem({ ...item, assignedBoxId: boxId });
@@ -200,6 +232,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         boxes,
         loading,
         error,
+        appMode,
+        isEditMode,
+        setAppMode,
         setItems,
         setBoxes,
         addItem,
