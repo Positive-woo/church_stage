@@ -7,6 +7,7 @@ import { Plus, Trash2, Image as ImageIcon, MapPin, Package, X, Pencil } from "lu
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Label } from "../components/ui/label";
 import { useApp } from "../context/AppContext";
+import { uploadBoxImage, deleteBoxImage } from "../../lib/supabase";
 
 export default function BoxManagement() {
   const { boxes, loading, isEditMode, addBox, updateBox, deleteBox, getItemsForBox, assignItemToBox } = useApp();
@@ -14,6 +15,9 @@ export default function BoxManagement() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingBoxId, setEditingBoxId] = useState<string | null>(null);
   const [editBox, setEditBox] = useState({ name: "", location: "" });
+  const [isMigrating, setIsMigrating] = useState(false);
+
+  const hasBase64Images = boxes.some((box) => box.imageUrls.some((url) => url.startsWith("data:")));
 
   useEffect(() => {
     if (!isEditMode) {
@@ -78,28 +82,53 @@ export default function BoxManagement() {
     setEditBox({ name: "", location: "" });
   };
 
-  const handleImageUpload = (box: (typeof boxes)[0], event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (box: (typeof boxes)[0], event: React.ChangeEvent<HTMLInputElement>) => {
     if (!isEditMode) return;
 
     const files = event.target.files;
-    if (files) {
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          updateBox({
-            ...box,
-            imageUrls: [...box.imageUrls, reader.result as string],
-          });
-        };
-        reader.readAsDataURL(file);
-      });
+    if (!files?.length) return;
+
+    const uploadedUrls: string[] = [];
+    for (const file of Array.from(files)) {
+      const url = await uploadBoxImage(box.id, file);
+      if (url) uploadedUrls.push(url);
+    }
+    if (uploadedUrls.length > 0) {
+      await updateBox({ ...box, imageUrls: [...box.imageUrls, ...uploadedUrls] });
     }
     event.target.value = "";
+  };
+
+  const migrateImagesToStorage = async () => {
+    if (!isEditMode || isMigrating) return;
+    setIsMigrating(true);
+
+    for (const box of boxes) {
+      const hasBase64 = box.imageUrls.some((url) => url.startsWith("data:"));
+      if (!hasBase64) continue;
+
+      const newUrls = [...box.imageUrls];
+      for (let i = 0; i < newUrls.length; i++) {
+        if (!newUrls[i].startsWith("data:")) continue;
+        const response = await fetch(newUrls[i]);
+        const blob = await response.blob();
+        const file = new File([blob], "image.jpg", { type: blob.type || "image/jpeg" });
+        const url = await uploadBoxImage(box.id, file);
+        if (url) newUrls[i] = url;
+      }
+      await updateBox({ ...box, imageUrls: newUrls });
+    }
+
+    setIsMigrating(false);
   };
 
   const deleteImage = async (box: (typeof boxes)[0], imageIndex: number) => {
     if (!isEditMode) return;
 
+    const url = box.imageUrls[imageIndex];
+    if (!url.startsWith("data:")) {
+      await deleteBoxImage(url);
+    }
     await updateBox({
       ...box,
       imageUrls: box.imageUrls.filter((_, idx) => idx !== imageIndex),
@@ -128,6 +157,16 @@ export default function BoxManagement() {
 
   return (
     <div className="page-container p-4 md:p-8 pb-20 md:pb-8">
+      {hasBase64Images && isEditMode && (
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <p className="text-sm text-amber-800 break-keep">
+            기존 이미지가 DB에 직접 저장되어 있어 로드가 느립니다. Storage로 이전하면 빨라집니다.
+          </p>
+          <Button size="sm" onClick={migrateImagesToStorage} disabled={isMigrating} className="shrink-0">
+            {isMigrating ? "이전 중..." : "Storage로 이전"}
+          </Button>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 md:mb-6 gap-3">
         <div>
           <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2 break-keep">박스 관리</h1>
