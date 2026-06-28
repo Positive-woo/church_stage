@@ -9,6 +9,38 @@ import { Label } from "../components/ui/label";
 import { useApp } from "../context/AppContext";
 import { uploadBoxImage, deleteBoxImage } from "../../lib/supabase";
 
+function resizeImage(file: File, maxSize = 1200, quality = 0.8): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          resolve(new File([blob!], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.src = objectUrl;
+  });
+}
+
 export default function BoxManagement() {
   const { boxes, loading, isEditMode, addBox, updateBox, deleteBox, getItemsForBox, assignItemToBox } = useApp();
   const [newBox, setNewBox] = useState({ name: "", location: "" });
@@ -90,7 +122,8 @@ export default function BoxManagement() {
 
     const uploadedUrls: string[] = [];
     for (const file of Array.from(files)) {
-      const url = await uploadBoxImage(box.id, file);
+      const resized = await resizeImage(file);
+      const url = await uploadBoxImage(box.id, resized);
       if (url) uploadedUrls.push(url);
     }
     if (uploadedUrls.length > 0) {
