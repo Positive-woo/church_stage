@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase, createId } from "../lib/supabase";
 import {
   stageLayoutFromRows,
+  zoneSizeFromDimensions,
   zoneTypeToRow,
   zoneToRow,
   boxPositionToRow,
@@ -33,35 +34,43 @@ export function useStageLayout(isEditMode = true) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
-    const { data: rows, error: fetchError } = await supabase
-      .from("stage_elements")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    if (fetchError) {
-      setError(fetchError.message);
-      return;
-    }
-
-    const layout = stageLayoutFromRows((rows ?? []) as StageElementRow[]);
-
-    if (layout.zoneTypes.length === 0 && isEditMode) {
-      await seedDefaultZoneTypes();
-      const { data: seeded } = await supabase
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: rows, error: fetchError } = await supabase
         .from("stage_elements")
         .select("*")
-        .eq("type", "zone_type");
-      const seededLayout = stageLayoutFromRows((seeded ?? []) as StageElementRow[]);
-      setZoneTypes(seededLayout.zoneTypes.length ? seededLayout.zoneTypes : defaultZoneTypes);
-    } else if (layout.zoneTypes.length === 0) {
-      setZoneTypes(defaultZoneTypes);
-    } else {
-      setZoneTypes(layout.zoneTypes);
-    }
+        .order("created_at", { ascending: true });
 
-    setZones(layout.zones);
-    setBoxPositions(layout.boxPositions);
-    setError(null);
+      if (fetchError?.message?.includes("statement timeout") && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
+
+      if (fetchError) {
+        setError(fetchError.message);
+        return;
+      }
+
+      const layout = stageLayoutFromRows((rows ?? []) as StageElementRow[]);
+
+      if (layout.zoneTypes.length === 0 && isEditMode) {
+        await seedDefaultZoneTypes();
+        const { data: seeded } = await supabase
+          .from("stage_elements")
+          .select("*")
+          .eq("type", "zone_type");
+        const seededLayout = stageLayoutFromRows((seeded ?? []) as StageElementRow[]);
+        setZoneTypes(seededLayout.zoneTypes.length ? seededLayout.zoneTypes : defaultZoneTypes);
+      } else if (layout.zoneTypes.length === 0) {
+        setZoneTypes(defaultZoneTypes);
+      } else {
+        setZoneTypes(layout.zoneTypes);
+      }
+
+      setZones(layout.zones);
+      setBoxPositions(layout.boxPositions);
+      setError(null);
+      return;
+    }
   }, [isEditMode]);
 
   useEffect(() => {
@@ -75,11 +84,32 @@ export function useStageLayout(isEditMode = true) {
 
     const channel = supabase
       .channel("realtime-stage-elements")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "stage_elements" },
-        () => fetchAll()
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "stage_elements" }, ({ new: row }) => {
+        const r = row as StageElementRow;
+        if (r.type === "zone_type") {
+          setZoneTypes((prev) => [...prev, { id: r.id, label: r.name, color: r.color }]);
+        } else if (r.type === "zone") {
+          setZones((prev) => [...prev, { id: r.id, zoneTypeId: r.name, x: r.x, y: r.y, size: zoneSizeFromDimensions(r.width, r.height) }]);
+        } else if (r.type === "box_position") {
+          setBoxPositions((prev) => [...prev, { id: r.id, boxId: r.name, x: r.x, y: r.y }]);
+        }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "stage_elements" }, ({ new: row }) => {
+        const r = row as StageElementRow;
+        if (r.type === "zone_type") {
+          setZoneTypes((prev) => prev.map((zt) => zt.id === r.id ? { id: r.id, label: r.name, color: r.color } : zt));
+        } else if (r.type === "zone") {
+          setZones((prev) => prev.map((z) => z.id === r.id ? { id: r.id, zoneTypeId: r.name, x: r.x, y: r.y, size: zoneSizeFromDimensions(r.width, r.height) } : z));
+        } else if (r.type === "box_position") {
+          setBoxPositions((prev) => prev.map((bp) => bp.id === r.id ? { id: r.id, boxId: r.name, x: r.x, y: r.y } : bp));
+        }
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "stage_elements" }, ({ old: row }) => {
+        const id = (row as { id: string }).id;
+        setZoneTypes((prev) => prev.filter((zt) => zt.id !== id));
+        setZones((prev) => prev.filter((z) => z.id !== id));
+        setBoxPositions((prev) => prev.filter((bp) => bp.id !== id));
+      })
       .subscribe();
 
     return () => {

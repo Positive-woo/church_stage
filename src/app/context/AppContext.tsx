@@ -15,8 +15,8 @@ export type AppMode = "viewer" | "edit";
 const APP_MODE_STORAGE_KEY = "church-stage-app-mode";
 
 function getInitialAppMode(): AppMode {
-  if (typeof window === "undefined") return "edit";
-  return window.localStorage.getItem(APP_MODE_STORAGE_KEY) === "viewer" ? "viewer" : "edit";
+  if (typeof window === "undefined") return "viewer";
+  return window.localStorage.getItem(APP_MODE_STORAGE_KEY) === "edit" ? "edit" : "viewer";
 }
 
 export interface Item {
@@ -79,19 +79,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [appMode]);
 
   const fetchAll = useCallback(async () => {
-    const [itemsRes, boxesRes] = await Promise.all([
-      supabase.from("items").select("*").order("created_at", { ascending: true }),
-      supabase.from("boxes").select("*").order("created_at", { ascending: true }),
-    ]);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const [itemsRes, boxesRes] = await Promise.all([
+        supabase.from("items").select("*").order("created_at", { ascending: true }),
+        supabase.from("boxes").select("*").order("created_at", { ascending: true }),
+      ]);
 
-    if (itemsRes.error || boxesRes.error) {
-      setError(itemsRes.error?.message ?? boxesRes.error?.message ?? "데이터 로드 실패");
+      const isTimeout =
+        itemsRes.error?.message?.includes("statement timeout") ||
+        boxesRes.error?.message?.includes("statement timeout");
+
+      if (isTimeout && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
+
+      if (itemsRes.error || boxesRes.error) {
+        setError(itemsRes.error?.message ?? boxesRes.error?.message ?? "데이터 로드 실패");
+        return;
+      }
+
+      setItems((itemsRes.data as ItemRow[]).map(itemFromRow));
+      setBoxes((boxesRes.data as BoxRow[]).map(boxFromRow));
+      setError(null);
       return;
     }
-
-    setItems((itemsRes.data as ItemRow[]).map(itemFromRow));
-    setBoxes((boxesRes.data as BoxRow[]).map(boxFromRow));
-    setError(null);
   }, []);
 
   useEffect(() => {
@@ -105,8 +117,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const channel = supabase
       .channel("realtime-app-data")
-      .on("postgres_changes", { event: "*", schema: "public", table: "items" }, () => fetchAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "boxes" }, () => fetchAll())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "items" }, ({ new: row }) => {
+        setItems((prev) => [...prev, itemFromRow(row as ItemRow)]);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "items" }, ({ new: row }) => {
+        setItems((prev) => prev.map((i) => i.id === (row as ItemRow).id ? itemFromRow(row as ItemRow) : i));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "items" }, ({ old: row }) => {
+        setItems((prev) => prev.filter((i) => i.id !== (row as { id: string }).id));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "boxes" }, ({ new: row }) => {
+        setBoxes((prev) => [...prev, boxFromRow(row as BoxRow)]);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "boxes" }, ({ new: row }) => {
+        setBoxes((prev) => prev.map((b) => b.id === (row as BoxRow).id ? boxFromRow(row as BoxRow) : b));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "boxes" }, ({ old: row }) => {
+        setBoxes((prev) => prev.filter((b) => b.id !== (row as { id: string }).id));
+      })
       .subscribe();
 
     return () => {
